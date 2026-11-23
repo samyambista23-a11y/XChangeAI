@@ -1,0 +1,88 @@
+# XChangeAI
+
+A cozy bookshop of the files that teach AI, built on the DeepSpace SDK.
+
+People spend weeks getting their AI good at one thing: writing an essay with a real thesis, building a DCF that holds up, explaining a proof step by step. What they end up with is a set of instructions and examples. XChangeAI lets them put that on a shelf as a **pack**, so anyone can borrow it.
+
+The twist is the **blind taste test**. Before you take a pack home, ask it anything. The app answers twice, once with the pack and once with the plain AI, and shows them as A and B in random order. You pick the better one, and only then learn which was which. Those votes are the pack's score.
+
+> A note on words: nobody can retrain ChatGPT or Claude with a file. A pack is the instructions you hand your AI, and that part can be shared.
+
+## What you can do
+
+- **Browse the shelves** by subject (Writing, Finance, Engineering, Math, Coding...), search, and sort by best proven, most tested or newest.
+- **Run a blind test** on any pack, then vote A, B or tie.
+- **Read the receipts**: the latest blind votes other readers cast.
+- **Take it home**: download the pack as a Markdown file ready to paste into your AI.
+- **Publish a pack**: paste it or upload a `.md`/`.txt` file.
+- **Play the game**: points for every blind vote, more when strangers pick your pack. Ranks run from Browser to Head Librarian. Covers earn stickers (New arrival, Rising, Staff pick, Bestseller) only with enough evidence. The leaderboard ranks packs by the lower bound of a 95% confidence interval on their win rate, so one lucky vote can't top it.
+
+## How the blind test stays blind
+
+1. `startTrial` (a server action) calls the AI twice in parallel with the same request and the same length rule: once with the pack as a fenced system instruction, once without.
+2. It flips a coin for which side gets the pack's answer and saves the trial with `answerA` and `answerB`, **but not the side**.
+3. The side goes into a separate collection, `trial_keys`, which **no member can read**, create, update or delete. Only server actions touch it.
+4. `castVote` checks the voter owns the trial and has not voted, reads the key, reveals the side on the trial, and updates the pack's counters.
+
+Because permissions are enforced in DeepSpace's Durable Object, not the UI, opening dev tools or calling the API directly doesn't reveal the answer early.
+
+## DeepSpace features used, and why
+
+| Feature | Where | Why it earns its place |
+|---|---|---|
+| Auth | every page under `(protected)` | Authors own packs; votes belong to real people; points are per person. |
+| Records + RBAC | `src/schemas/` | `trial_keys` is unreadable to members (the blind test depends on it). Trials are private until voted (`read: 'published'` on `status = voted`), then become public receipts. Members cannot write any collection directly. Pack text is `immutable`. Owner fields are `userBound`. |
+| Server actions | `src/actions/index.ts` | All scoring rules: author-only edits, one vote per trial, authors' votes on their own packs never count, daily test allowance, cascade delete. |
+| AI | `startTrial` | Two answers per test. Billed to the person running the test (their JWT), not the app owner. |
+| Realtime | `useQuery` on shelves, pack page, leaderboard | A stranger's vote moves the score, receipts and leaderboard on every open screen with no polling. |
+
+**Deliberately left out**
+
+- **File storage (R2).** A pack is text under 20,000 characters. Storing it in the record keeps one permission model and lets it sync live; an uploaded file is read in the browser and saved as text. A blob store would add a second set of rules for no gain.
+- **Payments.** Selling premium packs is a natural next step, but charging for something before the scoring is proven would be the wrong order.
+- **Scheduled jobs.** The daily allowance is computed from timestamps, so nothing needs to run at midnight.
+- **Presence / collaborative editing.** Packs are written by one author; nothing here is co-edited.
+
+## Main tradeoff
+
+**Pack text is final once published.** Authors can change the title, summary, shelf and sample request, but not the instructions. That makes improving a pack clunkier (you publish a new edition), but it means every vote a pack has was cast on the exact text people download. The alternative, editable packs with versioned scores, was more work than the deadline allowed and easier to get wrong.
+
+## Project layout
+
+```
+src/lib/xchange.ts                domain rules: validation, scoring, badges, ranks, prompts (pure, tested)
+src/schemas/                      packs, trials, trial_keys and their permissions
+src/actions/index.ts              server actions that enforce the rules
+src/pages/(app)/(protected)/      shelves, pack/[id], publish, leaderboard
+src/components/                   BookCover, ReadingCard
+starter-packs/                    three real packs to publish on day one
+```
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `npm install` | install dependencies |
+| `npx deepspace auth login` | sign in (opens a browser) |
+| `npx deepspace app init` | register the app and its id |
+| `npx deepspace dev start` | run locally at http://localhost:5173 |
+| `npm run test:unit` | domain, server-action and schema tests |
+| `npx deepspace deploy` | deploy to `xchangeai.app.space` (commit first) |
+
+Needs Node 22.15+, 24 or 26 and npm 11.6+.
+
+## Tests
+
+`npm run test:unit` runs three layers:
+
+- **Domain logic**: validation, coin flip, win/tie rules, win rate excluding ties, confidence ranking, badge thresholds, points and ranks, the UTC daily window, file export.
+- **Server actions** against an in-memory fake of the action tools with the AI mocked: the trial never stores the side and the key lives apart; the coin decides the side; the daily limit holds and resets; a failed AI call or failed key write leaves nothing behind; votes are one per trial, owner-only and validated; authors can't move their own score; forged owner or counter values on publish are ignored; pack text can't be edited; delete cascades.
+- **Schemas**: no SDK schema-lint warnings, no direct member writes, the key table is unreadable, pack text is immutable.
+
+## Known limits and what I'd do next
+
+- **Counter race.** `castVote` reads the pack, then writes the new totals. Two votes landing in the same instant could lose one. The fix is to recompute counts from trials, or a conditional write if the platform adds one.
+- **Same model on both sides.** Both answers come from the same model, so the test measures the pack, not the model. It can't tell you how a pack does on a different AI.
+- **No moderation.** A pack could tell the AI to behave badly. The system prompt asks it to follow the pack only where it isn't harmful, and the blind test exposes bad packs, but there is no review queue.
+- **Readers can see a voted trial's request.** That's what makes receipts work, but it means test requests are public once voted; the test form should say so more loudly.
+- **Next:** editions (link a new version to the old one), creator profiles, and letting a reader test two packs against each other.
