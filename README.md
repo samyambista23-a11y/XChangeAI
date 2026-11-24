@@ -1,15 +1,20 @@
 # XChangeAI
 
-A cozy bookshop of the files that teach AI, built on the DeepSpace SDK.
+**Don't write the prompt. Borrow one that works.**
 
-People spend weeks getting their AI good at one thing: writing an essay with a real thesis, building a DCF that holds up, explaining a proof step by step. What they end up with is a set of instructions and examples. XChangeAI lets them put that on a shelf as a **pack**, so anyone can borrow it.
+Live: https://xchangeai.app.space
 
-The twist is the **blind taste test**. Before you take a pack home, ask it anything. The app answers twice, once with the pack and once with the plain AI, and shows them as A and B in random order. You pick the better one, and only then learn which was which. Those votes are the pack's score.
+Getting great work out of an AI takes a great set of instructions, and as AI does more of our work, fewer people will bother writing one. But someone already has: the student who figured out how to get real essays instead of filler, the analyst whose AI builds a DCF properly, the TA whose AI explains proofs step by step.
 
-> A note on words: nobody can retrain ChatGPT or Claude with a file. A pack is the instructions you hand your AI, and that part can be shared.
+XChangeAI is a cozy bookshop of those instructions, called **packs**, for every subject and major. A college freshman with an essay due doesn't write a prompt: they take the essay pack off the shelf, hand it to their AI, and then ask their question.
+
+How do you know a pack is any good? You **taste-test it**. Ask it something and get two answers side by side, one with the pack and one from the plain AI, in random order. Pick the better one, then see which was which. Those blind votes are each pack's score, so the best packs rise to the top.
+
+> A note on words: nobody can retrain ChatGPT or Claude with a file. A pack is the set of instructions you hand your AI, and that part can be shared.
 
 ## What you can do
 
+- **Find a pack for your task** and **take it home** as a Markdown file to give your AI before your question.
 - **Browse the shelves** by subject (Writing, Finance, Engineering, Math, Coding...), search, and sort by best proven, most tested or newest.
 - **Run a blind test** on any pack, then vote A, B or tie.
 - **Read the receipts**: the latest blind votes other readers cast.

@@ -11,29 +11,29 @@ type Track = 'borrow' | 'share'
 const BORROW = [
   {
     icon: Search,
-    title: 'Find a pack',
-    body: 'Browse the shelves by section (Finance, Math, Coding…) or search. Each book is a set of instructions someone uses to make their AI good at one thing.',
+    title: 'Find the pack for your task',
+    body: 'Browse the shelves by section (Writing, Finance, Math, Coding…) or search for what you need, like “essay” or “DCF”. Each book is a set of instructions someone wrote to get their AI great at one thing.',
     link: { to: '/shelves', label: 'Go to the shelves' },
-  },
-  {
-    icon: BookOpen,
-    title: 'Read a few pages',
-    body: 'Open the pack and press “Read a few pages” to see exactly what it tells the AI. No mystery, no paywall.',
-  },
-  {
-    icon: FlaskConical,
-    title: 'Run a blind taste test',
-    body: 'Ask something you actually need. You get two answers, Manuscript A and B: one written with the pack, one by the plain AI, in random order.',
-  },
-  {
-    icon: Vote,
-    title: 'Pick the better one',
-    body: 'Vote A, B, or tie. Only then do we lift the cover and show which one used the pack. Your vote becomes part of the pack’s score.',
   },
   {
     icon: Download,
     title: 'Take it home',
-    body: 'Press “Take it home (.md)” to download the pack, then paste it into your own AI. See “Where to paste it” below.',
+    body: 'Open the pack and press “Take it home (.md)”. You get one small file with everything your AI needs to know.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Give it to your AI, then ask',
+    body: 'Paste the pack into ChatGPT, Claude or Gemini first (see “Where to paste it” below), then send your own question as usual. That’s it: no prompt writing.',
+  },
+  {
+    icon: FlaskConical,
+    title: 'Not sure? Taste-test it first',
+    body: 'Optional: run a blind test on the pack page. You get two answers, one with the pack and one from the plain AI, and pick the better one before seeing which was which.',
+  },
+  {
+    icon: Vote,
+    title: 'Your vote helps the next person',
+    body: 'Every blind vote feeds the pack’s score, so the best packs rise to the top of the shelves and the leaderboard.',
   },
 ]
 
@@ -122,8 +122,9 @@ export default function HowToPage() {
       <p className="font-hand text-2xl text-[#9b3b2a]">New here? Start with this —</p>
       <h1 className="font-display-tight text-5xl font-semibold leading-[1.02] text-ink">How the shop works</h1>
       <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-[#5a4a35]">
-        There are two ways to use XChangeAI. Borrow a pack someone else wrote to make your AI better at something, or share
-        what you’ve taught your own AI so others can use it.
+        Writing a great prompt takes effort most people skip. XChangeAI lets you borrow one instead: grab a pack someone
+        already perfected, hand it to your AI, and ask your question. Or share what works for you so others can skip the
+        work too.
       </p>
 
       {/* Track switch */}

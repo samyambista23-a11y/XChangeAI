@@ -25,9 +25,9 @@ import { APP_NAME } from './constants'
 declare const __DEEPSPACE_SITE_ORIGIN__: string | undefined
 
 export const seo = {
-  title: 'XChangeAI | Swap the files that teach your AI',
+  title: 'XChangeAI | Don’t write the prompt. Borrow one that works.',
   description:
-    'A bookshop of AI teaching packs for every subject. Blind-test any pack against the plain AI before you take it home.',
+    'A bookshop of ready-made AI instruction packs for every subject. Download one, give it to your AI before your question, and skip writing prompts.',
   /** Public origin for canonical URLs, og:url, and the sitemap — no trailing
    *  slash. Replace with the custom domain once one is attached, e.g.
    *  'https://www.example.com'. */

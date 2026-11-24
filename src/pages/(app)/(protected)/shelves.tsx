@@ -60,8 +60,8 @@ export default function ShelvesPage() {
           <p className="font-hand text-2xl text-[#9b3b2a]">Come in, have a browse —</p>
           <h1 className="font-display-tight mt-1 text-5xl font-semibold leading-[1.02] text-ink sm:text-6xl">The shelves</h1>
           <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-[#5a4a35]">
-            Each book is a teaching pack: what someone tells their AI to make it good at one thing. Every score here comes
-            from blind taste tests, where readers pick the better answer before learning which one used the pack.
+            Every book is a ready-made pack of instructions for one kind of task. Take one home, give it to your AI before
+            your question, and skip the prompt writing. Scores come from blind taste tests by other readers.
           </p>
         </div>
         <div className="animate-rise" style={{ animationDelay: '120ms' }}>

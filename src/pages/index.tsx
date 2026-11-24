@@ -37,11 +37,12 @@ export default function Landing() {
             <div className="animate-rise">
               <p className="font-hand text-3xl text-[#9b3b2a]">Est. 2026 · open late</p>
               <h1 className="font-display-tight mt-2 text-5xl font-semibold leading-[1.0] text-ink lg:text-[4.25rem]">
-                A bookshop for the files that teach AI.
+                Don’t write the prompt. Borrow one that works.
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#4a3c2b]">
-                Somewhere, someone already taught their AI to write a tight essay, build a clean DCF, or explain a proof
-                properly. Borrow their pack, but only after you’ve blind-tested it against the plain AI yourself.
+                Getting great work out of AI takes a great set of instructions, and most people never write one. Someone
+                already has: for essays, DCF models, lab reports, cover letters, proofs. Pick their pack off the shelf,
+                hand it to your AI before your question, and get their results without writing a word of prompt.
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-4">
                 <Link
@@ -90,20 +91,20 @@ export default function Landing() {
               {[
                 {
                   n: 'I',
-                  t: 'Browse the shelves',
-                  b: 'Packs for finance, engineering, math, writing, coding and more: the instructions and examples people give their AI to make it good at one thing.',
+                  t: 'Find the pack for your task',
+                  b: 'An essay due tomorrow? A DCF for class? A cover letter? Every section has packs written by people who already got their AI good at exactly that.',
                   r: '-1.2deg',
                 },
                 {
                   n: 'II',
-                  t: 'Blind taste test',
-                  b: 'Ask anything. Get two manuscripts, one with the pack and one without. Pick the better one before we tell you which is which.',
+                  t: 'Hand it to your AI',
+                  b: 'Download the pack and paste it into ChatGPT, Claude or Gemini before your question. Your AI now works the way theirs does. No prompt writing needed.',
                   r: '0.8deg',
                 },
                 {
                   n: 'III',
-                  t: 'Take it home',
-                  b: 'Download the pack for your own AI. Share yours, earn points when strangers pick it, and climb from Browser to Head Librarian.',
+                  t: 'Share what works for you',
+                  b: 'Taught your AI something useful? Put it on the shelf. You earn points every time a stranger picks your pack, from Browser all the way to Head Librarian.',
                   r: '-0.6deg',
                 },
               ].map((s, i) => (
@@ -143,11 +144,12 @@ export default function Landing() {
               </div>
             </div>
             <div>
-              <h2 className="font-display-tight text-4xl font-semibold leading-tight text-ink">No stars. No hype. Just blind votes.</h2>
+              <p className="font-hand text-2xl text-[#9b3b2a]">Not sure a pack is any good?</p>
+              <h2 className="font-display-tight text-4xl font-semibold leading-tight text-ink">Taste-test it first.</h2>
               <p className="mt-4 text-[17px] leading-relaxed text-[#4a3c2b]">
-                Reviews are easy to fake. So every pack is judged the hard way: real readers pick between two unlabelled
-                answers, and only afterwards find out which one used the pack. Bestseller stickers have to be earned, and
-                one lucky vote can’t top the list.
+                Ask it something real and get two answers side by side: one with the pack, one from the plain AI. Pick the
+                better one, then see which was which. Every vote feeds the pack’s score, so the best packs rise to the top
+                and Bestseller stickers have to be earned.
               </p>
               <p className="mt-6 text-sm text-[#7a6a52]">
                 A note on words: nobody can retrain ChatGPT or Claude with a file. A pack is the instructions you hand your
