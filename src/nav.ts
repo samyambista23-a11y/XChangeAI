@@ -19,6 +19,7 @@ export const nav: NavItem[] = [
   { path: '/shelves', label: 'Shelves' },
   { path: '/publish', label: 'Publish a pack' },
   { path: '/leaderboard', label: 'Leaderboard' },
+  { path: '/how-to', label: 'How to' },
   { path: '/settings', label: 'Settings' },
   // The /api-status debug page still exists — add
   // `{ path: '/api-status', label: 'API Status', devOnly: true }` to surface it.

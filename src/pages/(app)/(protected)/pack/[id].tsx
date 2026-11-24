@@ -1,5 +1,6 @@
 /**
- * /pack/:id — one pack: its cover, the blind test, the receipts, and the download.
+ * /pack/:id — one pack: the book on its lectern, the blind taste test, the
+ * receipts, and the download.
  *
  * The blind test is the heart of the app. A reader types a request, the server
  * answers it twice (with and without the pack) and shows the two answers as A
@@ -10,17 +11,23 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useUser, useUsers, type RecordData } from 'deepspace'
-import { Button, Input, Label, Textarea, useToast } from '@/components/ui'
-import { BadgeSticker, Cover } from '../../../../components/BookCover'
+import { ArrowLeft, BookOpen, Download } from 'lucide-react'
+import { useToast } from '@/components/ui'
+import { Book } from '../../../../components/BookCover'
+import { Manuscript, RevealPair, WritingPair } from '../../../../components/Manuscripts'
+import { AlsoHere, useAnnounce } from '../../../../components/ShopPresence'
 import { attempt, callAction } from '../../../../lib/api'
+import { genreOf } from '../../../../lib/genres'
 import {
   LIMITS,
   SUBJECTS,
+  badgeFor,
   packFileName,
   packToMarkdown,
   winRate,
   type Choice,
   type PackData,
+  type Side,
   type TrialData,
 } from '../../../../lib/xchange'
 
@@ -31,27 +38,51 @@ export default function PackPage() {
   const { records: packs, status } = useQuery<PackData>('packs')
   const { records: trials } = useQuery<TrialData>('trials', { where: { packId: id }, orderBy: 'createdAt', orderDir: 'desc' })
   const [showText, setShowText] = useState(false)
+  const [running, setRunning] = useState(false)
 
-  if (status === 'loading') return <Shell>Fetching the book…</Shell>
+  // Presence: tell the shop which pack you're on, and whether you're mid-test.
+  const current = packs.find((p) => p.recordId === id)
+  const deciding = trials.some((t) => t.data.testerId === user?.id && t.data.status === 'pending')
+  useAnnounce({
+    page: 'pack',
+    packId: current ? id : null,
+    packTitle: current?.data.title ?? null,
+    subject: current?.data.subject ?? null,
+    testing: running || deciding,
+  })
+
+  if (status === 'loading') {
+    return (
+      <Shell>
+        <p className="font-hand text-2xl text-[#6b5a43]">Fetching it from the back room…</p>
+      </Shell>
+    )
+  }
   const rec = packs.find((p) => p.recordId === id)
   if (!rec) {
     return (
       <Shell>
-        <p className="text-muted-foreground">
-          This pack isn’t on the shelves any more. <Link to="/shelves" className="underline">Back to the shelves</Link>
-        </p>
+        <div className="paper tape relative max-w-md -rotate-1 px-8 py-6">
+          <p className="font-hand text-3xl text-ink">This one’s been taken off the shelf.</p>
+          <Link to="/shelves" className="mt-3 inline-block text-[15px] text-[#2f5d46] underline underline-offset-4">
+            Back to the shelves
+          </Link>
+        </div>
       </Shell>
     )
   }
 
   const pack = rec.data
+  const g = genreOf(pack.subject)
   const isAuthor = pack.ownerId === user?.id
   const nameOf = (uid: string) => (uid === user?.id ? 'You' : users.find((u) => u.id === uid)?.name ?? 'A reader')
+  const authorName = pack.byline || nameOf(pack.ownerId)
   const rate = winRate(pack)
   const decisive = pack.trials - pack.ties
   const myPending = trials.filter((t) => t.data.testerId === user?.id && t.data.status === 'pending')
+  const myVoted = trials.filter((t) => t.data.testerId === user?.id && t.data.status === 'voted')
   const receipts = trials.filter((t) => t.data.status === 'voted' && t.data.counted).slice(0, 8)
-  const myVoted = trials.filter((t) => t.data.testerId === user?.id && t.data.status === 'voted').slice(0, 3)
+  const latest = myVoted[0]
 
   function download() {
     const blob = new Blob([packToMarkdown(pack)], { type: 'text/markdown;charset=utf-8' })
@@ -65,98 +96,137 @@ export default function PackPage() {
 
   return (
     <Shell>
-      <div className="grid gap-10 md:grid-cols-[208px_1fr]">
-        <div className="mx-auto md:mx-0">
-          <Cover id={id} pack={pack} large />
+      {/* The book on its lectern */}
+      <section className="grid items-center gap-12 md:grid-cols-[auto_1fr]">
+        <div className="animate-rise mx-auto flex flex-col items-center md:mx-0">
+          <div className="book-link book-stage">
+            <Book title={pack.title} subject={pack.subject} author={authorName} stats={pack} size="lg" />
+          </div>
+          <div className="plank mt-0 h-4 w-72" aria-hidden="true" />
         </div>
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{pack.subject} shelf</p>
-          <h1 className="mt-1 font-serif text-4xl font-semibold leading-tight tracking-tight">{pack.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">by {nameOf(pack.ownerId)}</p>
-          <p className="mt-4 text-lg">{pack.summary}</p>
 
-          <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-3">
-            <Stat label="Beats the plain AI" value={rate === null ? '—' : `${Math.round(rate * 100)}%`} />
-            <Stat label="Blind tests" value={String(decisive)} />
-            <Stat label="Called a tie" value={String(pack.ties)} />
-            <div>
-              <dt className="text-xs text-muted-foreground">Sticker</dt>
-              <dd className="mt-1">
-                <BadgeSticker pack={pack} />
-              </dd>
-            </div>
+        <div className="animate-rise" style={{ animationDelay: '100ms' }}>
+          <span className="brass-plate inline-flex rounded-sm px-3 py-1 font-display text-sm font-semibold">
+            {pack.subject} · {g.tagline}
+          </span>
+          <h1 className="font-display-tight mt-4 text-4xl font-semibold leading-[1.05] text-ink sm:text-5xl">{pack.title}</h1>
+          <p className="mt-2 font-hand text-2xl text-[#9b3b2a]">by {authorName}</p>
+          <p className="mt-4 max-w-xl text-lg leading-relaxed text-[#4a3c2b]">{pack.summary}</p>
+
+          <dl className="mt-7 flex flex-wrap gap-3">
+            <PriceTag label="Beats the plain AI" value={rate === null ? '—' : `${Math.round(rate * 100)}%`} color={g.cloth} />
+            <PriceTag label="Blind tests" value={String(decisive)} color={g.cloth} />
+            <PriceTag label="Called a tie" value={String(pack.ties)} color={g.cloth} />
+            <PriceTag label="On the cover" value={badgeFor(pack)} color={g.cloth} small />
           </dl>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button onClick={download}>Take it home (.md)</Button>
-            <Button variant="outline" onClick={() => setShowText((v) => !v)}>
-              {showText ? 'Hide the pack text' : 'Read the pack'}
-            </Button>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={download}
+              className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-cream shadow-md transition-transform duration-300 hover:-translate-y-0.5"
+              style={{ backgroundColor: g.cloth }}
+            >
+              <Download size={16} aria-hidden="true" /> Take it home (.md)
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowText((v) => !v)}
+              className="inline-flex items-center gap-2 rounded-full border border-[#cdb994] bg-[#fffaf0]/80 px-5 py-3 text-sm font-medium text-ink transition-transform duration-300 hover:-translate-y-0.5"
+            >
+              <BookOpen size={16} aria-hidden="true" /> {showText ? 'Close the book' : 'Read a few pages'}
+            </button>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Paste the file into your AI as a custom instruction, a project file, or the start of a chat.
+          <p className="mt-3 text-sm text-[#7a6a52]">
+            Paste the file into your AI as a custom instruction, a project file, or the start of a chat.{' '}
+            <Link to="/how-to" className="underline underline-offset-4 hover:text-ink">
+              How?
+            </Link>
           </p>
+          <AlsoHere packId={id} />
         </div>
-      </div>
+      </section>
 
       {showText && (
-        <pre className="mt-8 max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-md border border-border bg-card p-5 font-mono text-[13px] leading-relaxed">
-          {pack.content}
-        </pre>
+        <div className="paper animate-rise relative mt-10 rounded-[3px] px-8 py-7">
+          <p className="mb-3 font-type text-xs uppercase tracking-[0.2em] text-[#8a7658]">The pack, word for word</p>
+          <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap font-type text-[14px] leading-[1.75] text-[#2f271d]">
+            {pack.content}
+          </pre>
+        </div>
       )}
 
-      <section className="mt-12">
-        <h2 className="font-serif text-2xl font-semibold">Blind taste test</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Ask anything. You’ll get two answers, one written with this pack and one by the plain AI, in random order. Pick
-          the better one, then we tell you which was which.
-          {isAuthor && ' Your own votes on your own pack never count toward its score.'}
-        </p>
+      {/* The blind taste test */}
+      <section className="mt-20">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="font-hand text-2xl text-[#9b3b2a]">Try before you take it —</p>
+            <h2 className="font-display-tight text-4xl font-semibold text-ink">The blind taste test</h2>
+          </div>
+          <p className="max-w-md text-[15px] leading-relaxed text-[#5a4a35]">
+            Ask anything. One manuscript is written with this pack, the other by the plain AI, in random order. Pick the
+            better one, then we lift the cover.
+            {isAuthor && ' Your votes on your own pack never count toward its score.'}
+          </p>
+        </div>
 
         {myPending.map((t) => (
           <PendingTrial key={t.recordId} trial={t} />
         ))}
-        {myPending.length === 0 && <TrialForm packId={id} sample={pack.sampleRequest} />}
+        {myPending.length === 0 && <TrialForm packId={id} sample={pack.sampleRequest} onBusy={setRunning} />}
 
-        {myVoted.length > 0 && (
-          <div className="mt-6 space-y-2">
-            {myVoted.map((t) => (
-              <p key={t.recordId} className="text-sm text-muted-foreground">
-                You picked <strong className="text-foreground">{t.data.choice === 'tie' ? 'a tie' : t.data.choice}</strong> on “
-                {t.data.request}”. The pack was <strong className="text-foreground">{t.data.packSide}</strong>
-                {t.data.choice === 'tie' ? '.' : t.data.packWon ? ', so the pack won.' : ', so the plain AI won.'}
-              </p>
-            ))}
+        {myPending.length === 0 && latest && latest.data.packSide && latest.data.choice && (
+          <div className="mt-12">
+            <p className="text-[15px] text-[#5a4a35]">
+              Your last test: <span className="italic text-ink">“{latest.data.request}”</span>
+            </p>
+            <RevealPair
+              answerA={latest.data.answerA}
+              answerB={latest.data.answerB}
+              packSide={latest.data.packSide as Side}
+              choice={latest.data.choice as Choice}
+            />
           </div>
         )}
       </section>
 
-      <section className="mt-12">
-        <h2 className="font-serif text-2xl font-semibold">Receipts</h2>
-        <p className="mt-1 text-sm text-muted-foreground">The latest blind votes from other readers. This is where the score comes from.</p>
-        {receipts.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">No votes from other readers yet.</p>
-        ) : (
-          <ul className="mt-4 divide-y divide-border rounded-md border border-border bg-card">
-            {receipts.map((t) => (
-              <li key={t.recordId} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-sm">
-                <span className="min-w-0 flex-1 truncate">
-                  <span className="text-muted-foreground">{nameOf(t.data.testerId)} asked:</span> {t.data.request}
-                </span>
-                <span
-                  className={
-                    t.data.choice === 'tie'
-                      ? 'text-muted-foreground'
-                      : t.data.packWon
-                        ? 'font-medium text-primary'
-                        : 'font-medium text-destructive'
-                  }
-                >
-                  {t.data.choice === 'tie' ? 'Tie' : t.data.packWon ? 'Pack won' : 'Plain AI won'}
-                </span>
-              </li>
-            ))}
-          </ul>
+      {/* Receipts */}
+      <section className="mt-20 grid gap-10 md:grid-cols-[1fr_320px]">
+        <div>
+          <h2 className="font-display-tight text-3xl font-semibold text-ink">Receipts</h2>
+          <p className="mt-1 text-[15px] text-[#5a4a35]">The latest blind votes from other readers. This is where the score comes from.</p>
+          {receipts.length === 0 ? (
+            <p className="mt-5 font-hand text-2xl text-[#6b5a43]">No votes from other readers yet. Share it with a friend.</p>
+          ) : (
+            <ul className="paper mt-5 rounded-[3px] px-6 py-3 font-type text-[13px]">
+              {receipts.map((t) => (
+                <li key={t.recordId} className="flex flex-wrap items-baseline gap-x-3 border-b border-dashed border-[#dccbaa] py-2.5 last:border-0">
+                  <span className="w-28 shrink-0 truncate text-[#8a7658]">{nameOf(t.data.testerId)}</span>
+                  <span className="min-w-0 flex-1 truncate text-[#2f271d]">{t.data.request}</span>
+                  <span
+                    className={`font-bold uppercase tracking-wider ${
+                      t.data.choice === 'tie' ? 'text-[#8a7658]' : t.data.packWon ? 'text-[#2f5d46]' : 'text-[#9b3b2a]'
+                    }`}
+                  >
+                    {t.data.choice === 'tie' ? 'tie' : t.data.packWon ? 'pack won' : 'plain won'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {myVoted.length > 1 && (
+          <div>
+            <h3 className="font-display text-xl font-semibold text-ink">Your earlier tests</h3>
+            <ul className="mt-3 space-y-2 text-sm text-[#5a4a35]">
+              {myVoted.slice(1, 6).map((t) => (
+                <li key={t.recordId} className="leading-snug">
+                  <span className="italic">“{t.data.request}”</span> —{' '}
+                  {t.data.choice === 'tie' ? 'tie' : t.data.packWon ? 'you picked the pack' : 'you picked the plain AI'}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </section>
 
@@ -167,28 +237,36 @@ export default function PackPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
-      <Link to="/shelves" className="mb-8 inline-block text-sm text-muted-foreground hover:text-foreground">
-        ← Back to the shelves
+    <div className="mx-auto max-w-6xl px-5 pb-24 pt-8 sm:px-8">
+      <Link to="/shelves" className="mb-10 inline-flex items-center gap-1.5 text-sm text-[#7a6a52] transition-colors hover:text-ink">
+        <ArrowLeft size={15} aria-hidden="true" /> Back to the shelves
       </Link>
       {children}
     </div>
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+/** A stat drawn as a little card-stock price tag on a string. */
+function PriceTag({ label, value, color, small = false }: { label: string; value: string; color: string; small?: boolean }) {
   return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="font-serif text-2xl font-semibold">{value}</dd>
+    <div className="relative rounded-[3px] border border-[#dccbaa] bg-[#fffaf0] py-2 pl-6 pr-4 shadow-sm">
+      <span className="absolute left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full border border-[#cdb994] bg-[#f6efe2]" aria-hidden="true" />
+      <dt className="text-[11px] uppercase tracking-[0.14em] text-[#8a7658]">{label}</dt>
+      <dd className={`font-display font-semibold ${small ? 'text-lg' : 'text-2xl'}`} style={{ color }}>
+        {value}
+      </dd>
     </div>
   )
 }
 
-function TrialForm({ packId, sample }: { packId: string; sample: string }) {
+function TrialForm({ packId, sample, onBusy }: { packId: string; sample: string; onBusy: (b: boolean) => void }) {
   const { error } = useToast()
   const [request, setRequest] = useState(sample)
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusyState] = useState(false)
+  const setBusy = (b: boolean) => {
+    setBusyState(b)
+    onBusy(b)
+  }
 
   async function run(e: FormEvent) {
     e.preventDefault()
@@ -199,18 +277,34 @@ function TrialForm({ packId, sample }: { packId: string; sample: string }) {
   }
 
   return (
-    <form onSubmit={run} className="mt-5 rounded-md border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-      <Label htmlFor="request">Your request</Label>
-      <Textarea id="request" rows={3} maxLength={LIMITS.request} value={request} onChange={(e) => setRequest(e.target.value)} className="mt-1.5 bg-background" />
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button type="submit" loading={busy}>
-          {busy ? 'Writing two answers…' : 'Run a blind test'}
-        </Button>
-        <span className="text-xs text-muted-foreground">
-          Uses your DeepSpace AI credits. Up to {LIMITS.trialsPerDay} tests a day.
-        </span>
-      </div>
-    </form>
+    <>
+      <form onSubmit={run} className="paper mt-8 rounded-[3px] px-7 pb-6 pt-5">
+        <label htmlFor="request" className="font-type text-xs uppercase tracking-[0.2em] text-[#8a7658]">
+          Your request
+        </label>
+        <textarea
+          id="request"
+          rows={3}
+          maxLength={LIMITS.request}
+          value={request}
+          onChange={(e) => setRequest(e.target.value)}
+          disabled={busy}
+          className="ruled mt-1 w-full resize-none bg-transparent text-[17px] text-ink outline-none placeholder:text-[#a8957a]"
+          placeholder="Ask it anything this pack should be good at…"
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <button
+            type="submit"
+            disabled={busy}
+            className="inline-flex items-center gap-2 rounded-full bg-[#2f5d46] px-6 py-3 text-sm font-medium text-cream shadow-md transition-all duration-300 hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-70"
+          >
+            {busy ? 'Writing two manuscripts…' : 'Run a blind test'}
+          </button>
+          <span className="text-xs text-[#8a7658]">Uses your DeepSpace AI credits · up to {LIMITS.trialsPerDay} tests a day</span>
+        </div>
+      </form>
+      {busy && <WritingPair />}
+    </>
   )
 }
 
@@ -225,28 +319,35 @@ function PendingTrial({ trial }: { trial: RecordData<TrialData> }) {
     if (!r.ok) error('Vote not saved', r.error)
   }
 
+  const pickButton = (side: Side) => (
+    <button
+      type="button"
+      onClick={() => vote(side)}
+      disabled={busy !== null}
+      className="w-full rounded-full bg-ink py-3 text-sm font-medium text-cream shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#2f5d46] disabled:opacity-60"
+    >
+      {busy === side ? 'Lifting the cover…' : `${side} is the better one`}
+    </button>
+  )
+
   return (
-    <div className="mt-5 rounded-md border-2 border-[#c99a2e]/60 bg-card p-5">
-      <p className="text-sm text-muted-foreground">
-        You asked: <span className="text-foreground">{trial.data.request}</span>
+    <div className="animate-rise mt-8">
+      <p className="text-[15px] text-[#5a4a35]">
+        You asked: <span className="italic text-ink">“{trial.data.request}”</span>
       </p>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {(['A', 'B'] as const).map((side) => (
-          <article key={side} className="flex flex-col rounded-md border border-border bg-background p-4">
-            <h3 className="mb-2 font-serif text-xl font-semibold">Answer {side}</h3>
-            <div className="flex-1 whitespace-pre-wrap text-sm leading-relaxed">
-              {side === 'A' ? trial.data.answerA : trial.data.answerB}
-            </div>
-            <Button className="mt-4" onClick={() => vote(side)} loading={busy === side} disabled={busy !== null}>
-              {side} is better
-            </Button>
-          </article>
-        ))}
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <Manuscript side="A" text={trial.data.answerA} tilt={-0.5} footer={pickButton('A')} />
+        <Manuscript side="B" text={trial.data.answerB} tilt={0.5} footer={pickButton('B')} />
       </div>
-      <div className="mt-3 text-center">
-        <Button variant="ghost" size="sm" onClick={() => vote('tie')} loading={busy === 'tie'} disabled={busy !== null}>
-          Honestly, it’s a tie
-        </Button>
+      <div className="mt-6 text-center">
+        <button
+          type="button"
+          onClick={() => vote('tie')}
+          disabled={busy !== null}
+          className="font-hand text-2xl text-[#6b5a43] underline decoration-wavy decoration-[#c99a3e] underline-offset-4 transition-colors hover:text-ink disabled:opacity-60"
+        >
+          {busy === 'tie' ? 'noted…' : 'honestly, it’s a tie'}
+        </button>
       </div>
     </div>
   )
@@ -279,41 +380,54 @@ function AuthorDesk({ id, pack }: { id: string; pack: PackData }) {
     else error('Could not delete', r.error)
   }
 
+  const field =
+    'h-11 w-full rounded-md border border-[#dccbaa] bg-[#fffaf0] px-3 text-[15px] text-ink outline-none transition-shadow focus:shadow-[0_0_0_3px_rgba(47,93,70,.2)]'
+
   return (
-    <section className="mt-12 rounded-md border border-dashed border-border p-5">
-      <h2 className="font-serif text-xl font-semibold">Author’s desk</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        You can change the cover details. The pack text is final, so every vote it has was cast on what people download.
-        To improve it, publish a new edition.
+    <section className="mt-20 rounded-[4px] border-2 border-dashed border-[#cdb994] px-6 py-7 sm:px-8">
+      <p className="font-hand text-2xl text-[#9b3b2a]">Staff only —</p>
+      <h2 className="font-display-tight text-3xl font-semibold text-ink">The author’s desk</h2>
+      <p className="mt-2 max-w-2xl text-[15px] text-[#5a4a35]">
+        You can change what’s on the cover. The pack text is final, so every vote it has was cast on exactly what people
+        download. To improve it, publish a new edition.
       </p>
-      <form onSubmit={save} className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="ed-title">Title</Label>
-          <Input id="ed-title" value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ed-subject">Shelf</Label>
-          <select id="ed-subject" value={subject} onChange={(e) => setSubject(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm">
+      <form onSubmit={save} className="mt-6 grid gap-4 sm:grid-cols-2">
+        <label className="space-y-1.5 text-sm text-[#5a4a35]">
+          Title
+          <input className={field} value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} />
+        </label>
+        <label className="space-y-1.5 text-sm text-[#5a4a35]">
+          Section
+          <select className={field} value={subject} onChange={(e) => setSubject(e.target.value)}>
             {SUBJECTS.map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="ed-summary">Summary</Label>
-          <Input id="ed-summary" value={summary} maxLength={LIMITS.summary} onChange={(e) => setSummary(e.target.value)} />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="ed-sample">Sample request</Label>
-          <Input id="ed-sample" value={sampleRequest} maxLength={LIMITS.sampleRequest} onChange={(e) => setSampleRequest(e.target.value)} />
-        </div>
+        </label>
+        <label className="space-y-1.5 text-sm text-[#5a4a35] sm:col-span-2">
+          Summary
+          <input className={field} value={summary} maxLength={LIMITS.summary} onChange={(e) => setSummary(e.target.value)} />
+        </label>
+        <label className="space-y-1.5 text-sm text-[#5a4a35] sm:col-span-2">
+          Sample request
+          <input className={field} value={sampleRequest} maxLength={LIMITS.sampleRequest} onChange={(e) => setSampleRequest(e.target.value)} />
+        </label>
         <div className="flex flex-wrap gap-3 sm:col-span-2">
-          <Button type="submit" loading={busy === 'save'}>
-            Save details
-          </Button>
-          <Button type="button" variant="ghost" onClick={remove} loading={busy === 'delete'}>
-            Delete pack
-          </Button>
+          <button
+            type="submit"
+            disabled={busy !== null}
+            className="rounded-full bg-[#2f5d46] px-5 py-2.5 text-sm font-medium text-cream shadow-sm transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+          >
+            {busy === 'save' ? 'Saving…' : 'Save cover details'}
+          </button>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy !== null}
+            className="rounded-full px-5 py-2.5 text-sm text-[#9b3b2a] underline-offset-4 hover:underline disabled:opacity-60"
+          >
+            {busy === 'delete' ? 'Removing…' : 'Take it off the shelf'}
+          </button>
         </div>
       </form>
     </section>

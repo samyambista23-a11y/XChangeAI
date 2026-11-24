@@ -1,3 +1,8 @@
+import '@fontsource-variable/fraunces/full.css'
+import '@fontsource-variable/dm-sans'
+import '@fontsource/caveat/500.css'
+import '@fontsource/caveat/700.css'
+import '@fontsource/courier-prime/400.css'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 // Route-based code splitting keeps authenticated/collaborative pages out of
 // the initial bundle for a public top-level route such as `/`.

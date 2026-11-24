@@ -15,6 +15,8 @@ The twist is the **blind taste test**. Before you take a pack home, ask it anyth
 - **Read the receipts**: the latest blind votes other readers cast.
 - **Take it home**: download the pack as a Markdown file ready to paste into your AI.
 - **Publish a pack**: paste it or upload a `.md`/`.txt` file.
+- **See who's in the shop**: live presence shows who's browsing and who's mid-test on a pack.
+- **Read the How-to**: two guided paths (borrow or share) and where to paste a pack in ChatGPT, Claude or Gemini.
 - **Play the game**: points for every blind vote, more when strangers pick your pack. Ranks run from Browser to Head Librarian. Covers earn stickers (New arrival, Rising, Staff pick, Bestseller) only with enough evidence. The leaderboard ranks packs by the lower bound of a 95% confidence interval on their win rate, so one lucky vote can't top it.
 
 ## How the blind test stays blind
@@ -35,17 +37,26 @@ Because permissions are enforced in DeepSpace's Durable Object, not the UI, open
 | Server actions | `src/actions/index.ts` | All scoring rules: author-only edits, one vote per trial, authors' votes on their own packs never count, daily test allowance, cascade delete. |
 | AI | `startTrial` | Two answers per test. Billed to the person running the test (their JWT), not the app owner. |
 | Realtime | `useQuery` on shelves, pack page, leaderboard | A stranger's vote moves the score, receipts and leaderboard on every open screen with no polling. |
+| Presence | `usePresenceRoom('shop:floor')` in `ShopPresence.tsx` | "Who's in the shop": a live strip of who's browsing, *reading now* / *testing now* dots on covers, and "Priya is running a blind test on this pack" on a pack page. Ephemeral by design, nothing stored. Identity comes from the verified sign-in; the shared activity is parsed defensively because it comes from other clients. |
 
 **Deliberately left out**
 
 - **File storage (R2).** A pack is text under 20,000 characters. Storing it in the record keeps one permission model and lets it sync live; an uploaded file is read in the browser and saved as text. A blob store would add a second set of rules for no gain.
 - **Payments.** Selling premium packs is a natural next step, but charging for something before the scoring is proven would be the wrong order.
 - **Scheduled jobs.** The daily allowance is computed from timestamps, so nothing needs to run at midnight.
-- **Presence / collaborative editing.** Packs are written by one author; nothing here is co-edited.
+- **Collaborative editing.** Packs are written by one author; nothing here is co-edited.
+
+## House collection
+
+So the shop isn't bare on day one, `src/lib/house-packs.ts` holds 31 packs across all 12 sections. The app owner adds them with one button on the shelves page (`stockHouseShelf`, admin-only and idempotent). They are labelled **House collection** on the cover rather than credited to invented people, start with zero tests like any new pack, and earn no author points for anyone. Every one passes the same validation as a user-published pack (tested).
 
 ## Main tradeoff
 
 **Pack text is final once published.** Authors can change the title, summary, shelf and sample request, but not the instructions. That makes improving a pack clunkier (you publish a new edition), but it means every vote a pack has was cast on the exact text people download. The alternative, editable packs with versioned scores, was more work than the deadline allowed and easier to get wrong.
+
+## Design
+
+The shop is meant to feel like a real bookshop, not a template: each subject has its own cloth binding, foil and pattern (`src/lib/genres.ts`), books stand on wooden shelves with brass plaques, stickers look like ones a bookseller would use, and the blind test is two taped manuscripts with a stamp revealing the pack. Fonts (Fraunces, DM Sans, Caveat, Courier Prime) are self-hosted through Fontsource, so no third-party font requests. Motion respects `prefers-reduced-motion`.
 
 ## Project layout
 

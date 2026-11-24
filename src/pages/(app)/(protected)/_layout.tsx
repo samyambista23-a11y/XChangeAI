@@ -17,11 +17,14 @@ import { useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { AuthGate, AuthOverlay } from 'deepspace'
 import { Button } from '@/components/ui'
+import { ShopPresenceProvider } from '../../../components/ShopPresence'
 
 export default function ProtectedLayout() {
   return (
     <AuthGate fallback={<SignedOutPanel />}>
-      <Outlet />
+      <ShopPresenceProvider>
+        <Outlet />
+      </ShopPresenceProvider>
     </AuthGate>
   )
 }

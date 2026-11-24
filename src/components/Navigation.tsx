@@ -58,21 +58,37 @@ export default function Navigation() {
         to={item.path}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'px-3 py-1.5 text-sm',
-          active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+          'relative px-3 py-1.5 text-[15px] transition-colors duration-300',
+          active ? 'text-ink' : 'text-[#6b5a43] hover:text-ink',
         )}
       >
         {item.label}
+        <span
+          aria-hidden="true"
+          className={cn(
+            'absolute inset-x-3 -bottom-0.5 h-[3px] origin-left rounded-full bg-[#c99a3e] transition-transform duration-300',
+            active ? 'scale-x-100' : 'scale-x-0',
+          )}
+        />
       </Link>
     )
   }
 
   return (
     <>
-      <nav data-testid="app-navigation" className="border-b border-border bg-background">
-        <div className="mx-auto flex h-12 max-w-7xl items-center gap-4 px-4">
-          <Link to="/home" className="text-sm font-semibold text-foreground">
-            {APP_NAME}
+      <nav
+        data-testid="app-navigation"
+        className="sticky top-0 z-30 border-b border-[#dccbaa]/80 bg-[#f6efe2]/85 backdrop-blur-md"
+      >
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-5 px-5 sm:px-8">
+          <Link to="/shelves" className="group flex items-center gap-2.5" aria-label={`${APP_NAME} home`}>
+            <span className="grid h-9 w-9 place-items-center rounded-[3px] bg-[#2f5d46] font-display text-lg font-bold text-[#e6c674] shadow-md transition-transform duration-300 group-hover:-rotate-6">
+              X
+            </span>
+            <span className="leading-none">
+              <span className="block font-display text-xl font-semibold text-ink">XChangeAI</span>
+              <span className="block font-hand text-[15px] text-[#9b3b2a]">a bookshop for AI know-how</span>
+            </span>
           </Link>
 
           <div className="hidden items-center md:flex">{visibleNav.map(navLink)}</div>
@@ -136,7 +152,7 @@ export default function Navigation() {
             <button
               data-testid="nav-sign-in-button"
               onClick={() => setShowAuthModal(true)}
-              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+              className="rounded-full bg-[#2f5d46] px-4 py-2 text-sm font-medium text-cream shadow-sm transition-transform hover:-translate-y-0.5"
             >
               Sign in
             </button>

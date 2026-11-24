@@ -5,9 +5,12 @@
 
 import { signOut, useUser } from 'deepspace'
 import { Button } from '@/components/ui'
+import { useAnnounce } from '../../../components/ShopPresence'
+import { IDLE } from '../../../lib/presence'
 
 export default function SettingsPage() {
   const { user } = useUser()
+  useAnnounce(IDLE)
 
   return (
     // No background on page wrappers — pages render into whatever the app's

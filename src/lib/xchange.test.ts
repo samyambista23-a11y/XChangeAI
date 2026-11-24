@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { HOUSE_PACKS } from './house-packs'
 import {
   badgeFor,
   confidenceScore,
@@ -111,5 +112,16 @@ describe('files and covers', () => {
   it('gives each pack a stable cover colour', () => {
     expect(coverIndex('abc', 6)).toBe(coverIndex('abc', 6))
     expect(coverIndex('abc', 6)).toBeLessThan(6)
+  })
+})
+
+describe('house collection', () => {
+  it('every pack passes the same validation as a user-published pack', () => {
+    for (const p of HOUSE_PACKS) expect(validatePack(p), p.title).toBeNull()
+  })
+  it('covers every section and has unique titles', () => {
+    expect(new Set(HOUSE_PACKS.map((p) => p.subject)).size).toBe(12)
+    expect(new Set(HOUSE_PACKS.map((p) => p.title)).size).toBe(HOUSE_PACKS.length)
+    expect(HOUSE_PACKS.length).toBeGreaterThanOrEqual(25)
   })
 })

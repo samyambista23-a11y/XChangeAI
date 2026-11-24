@@ -9,12 +9,14 @@
  *   deletePack         owner removes a pack and its trials
  *   startTrial         run the blind A/B test; the answer key is stored apart
  *   castVote           tester picks A, B or tie; side revealed, score updated
+ *   stockHouseShelf    admin adds any missing house-collection packs (idempotent)
  */
 
 import { generateText } from 'ai'
-import { createDeepSpaceAI, resolveDeepSpaceAgentModel } from 'deepspace/worker'
+import { createDeepSpaceAI, resolveAppRole, resolveDeepSpaceAgentModel } from 'deepspace/worker'
 import type { ActionContext, ActionHandler, ActionResult, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
+import { HOUSE_BYLINE, HOUSE_PACKS } from '../lib/house-packs'
 import {
   CHOICES,
   LIMITS,
@@ -47,6 +49,9 @@ async function getPack(tools: ActionTools, packId: unknown) {
   const got = await tools.get<Row<PackData>>('packs', packId)
   return got.success ? got.data.record.data : null
 }
+
+/** Output budget per answer, the same for both sides. */
+const ANSWER_TOKENS = 4000
 
 const DETAIL_FIELDS = ['title', 'subject', 'summary', 'sampleRequest'] as const
 
@@ -141,10 +146,17 @@ export const actions: Record<string, ActionHandler<Env>> = {
     let withPack: string
     let baseline: string
     try {
+      // Generous budget: thinking shares the output allowance, and a pack that asks for
+      // more structure needs more room. Both sides get the same budget.
       const [a, b] = await Promise.all([
-        generateText({ model, system: withPackSystem(pack.content), prompt: request, maxOutputTokens: 700 }),
-        generateText({ model, system: baselineSystem(), prompt: request, maxOutputTokens: 700 }),
+        generateText({ model, system: withPackSystem(pack.content), prompt: request, maxOutputTokens: ANSWER_TOKENS }),
+        generateText({ model, system: baselineSystem(), prompt: request, maxOutputTokens: ANSWER_TOKENS }),
       ])
+      // A cut-off answer almost always loses, which would make the test unfair. Never store one.
+      if (a.finishReason === 'length' || b.finishReason === 'length') {
+        console.warn('[startTrial] truncated answer', { pack: a.finishReason, plain: b.finishReason })
+        return fail('One of the answers was cut off before it finished, so this test was thrown away. Try a shorter request.')
+      }
       withPack = a.text.trim()
       baseline = b.text.trim()
     } catch (err) {
@@ -217,5 +229,39 @@ export const actions: Record<string, ActionHandler<Env>> = {
       })
     }
     return updated
+  },
+
+  stockHouseShelf: async ({ userId, tools, env }: Ctx) => {
+    // Admins only (the app owner is always an admin).
+    const isOwner = !!env.OWNER_USER_ID && env.OWNER_USER_ID === userId
+    if (!isOwner && (await resolveAppRole(env, userId)) !== 'admin') {
+      return fail('Only the shop owner can stock the house shelf.')
+    }
+
+    const existing = await tools.query<Row<PackData>>('packs', { where: { byline: HOUSE_BYLINE }, limit: 500 })
+    if (!existing.success) return fail('Could not check the shelf.')
+    const have = new Set(existing.data.records.map((r) => r.data.title))
+
+    let added = 0
+    for (const p of HOUSE_PACKS) {
+      if (have.has(p.title)) continue
+      const invalid = validatePack(p)
+      if (invalid) return fail(`House pack "${p.title}" is invalid: ${invalid}`)
+      const r = await tools.create('packs', {
+        ownerId: userId,
+        byline: HOUSE_BYLINE,
+        title: p.title,
+        subject: p.subject,
+        summary: p.summary,
+        content: p.content.trim(),
+        sampleRequest: p.sampleRequest,
+        trials: 0,
+        wins: 0,
+        ties: 0,
+      })
+      if (!r.success) return fail(`Stopped after adding ${added}: ${r.error}`)
+      added += 1
+    }
+    return { success: true, data: { added, total: HOUSE_PACKS.length } }
   },
 }

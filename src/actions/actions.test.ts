@@ -12,11 +12,13 @@ vi.mock('deepspace/worker', async () => {
     ...actual,
     createDeepSpaceAI: vi.fn(() => (id: string) => ({ id })),
     resolveDeepSpaceAgentModel: vi.fn(() => ({ modelId: 'test-model', provider: 'anthropic' })),
+    resolveAppRole: vi.fn(async (_env: unknown, uid: string) => (uid === 'admin-user' ? 'admin' : 'member')),
   }
 })
 
 import { generateText } from 'ai'
 import { actions, deps } from './index'
+import { HOUSE_BYLINE, HOUSE_PACKS } from '../lib/house-packs'
 
 type Row = { recordId: string; data: Record<string, unknown>; createdAt: string }
 
@@ -78,6 +80,7 @@ const pack = {
 function mockAnswers() {
   vi.mocked(generateText).mockImplementation((async (o: { system: string }) => ({
     text: o.system.includes('<teaching_pack>') ? 'PACK ANSWER' : 'PLAIN ANSWER',
+    finishReason: 'stop',
   })) as never)
 }
 
@@ -172,6 +175,19 @@ describe('blind trials', () => {
     expect(broken.db.trials).toHaveLength(0)
   })
 
+  it('throws the test away if either answer was cut off, so a truncated answer can never lose a vote', async () => {
+    const { tools, db, packId } = await published()
+    vi.mocked(generateText).mockImplementation((async (o: { system: string }) => ({
+      text: o.system.includes('<teaching_pack>') ? 'Inflation is a hidden tax that' : 'PLAIN ANSWER',
+      finishReason: o.system.includes('<teaching_pack>') ? 'length' : 'stop',
+    })) as never)
+    const r = await run('startTrial', 'bob', { packId, request: 'Write a 200 word essay on inflation' }, tools)
+    expect(r.success).toBe(false)
+    expect((r as { error: string }).error).toMatch(/cut off/i)
+    expect(db.trials).toHaveLength(0)
+    expect(db.trial_keys).toHaveLength(0)
+  })
+
   it('validates the request', async () => {
     const { tools, packId } = await published()
     expect((await run('startTrial', 'bob', { packId, request: 'hi' }, tools)).success).toBe(false)
@@ -233,5 +249,26 @@ describe('deleting', () => {
     expect(db.packs).toHaveLength(0)
     expect(db.trials).toHaveLength(0)
     expect(db.trial_keys).toHaveLength(0)
+  })
+})
+
+describe('house shelf', () => {
+  it('is admin-only', async () => {
+    const { tools, db } = makeTools()
+    expect((await run('stockHouseShelf', 'bob', {}, tools)).success).toBe(false)
+    expect(db.packs).toHaveLength(0)
+  })
+
+  it('adds every house pack once, labelled and with zero scores, and is safe to run twice', async () => {
+    const { tools, db } = makeTools()
+    const first = await run('stockHouseShelf', 'admin-user', {}, tools)
+    expect(first.success).toBe(true)
+    expect(db.packs).toHaveLength(HOUSE_PACKS.length)
+    expect(db.packs.every((p) => p.data.byline === HOUSE_BYLINE && p.data.trials === 0 && p.data.wins === 0)).toBe(true)
+
+    const again = await run('stockHouseShelf', 'admin-user', {}, tools)
+    expect(again.success).toBe(true)
+    expect((again as { data: { added: number } }).data.added).toBe(0)
+    expect(db.packs).toHaveLength(HOUSE_PACKS.length)
   })
 })

@@ -52,6 +52,8 @@ export interface PackData {
   summary: string
   content: string
   sampleRequest: string
+  /** Set for the house collection, shown instead of the owner's name. */
+  byline?: string | null
   trials: number
   wins: number
   ties: number

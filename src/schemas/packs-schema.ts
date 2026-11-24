@@ -20,6 +20,8 @@ export const packsSchema: CollectionSchema = {
     { name: 'summary', storage: 'text', interpretation: 'plain', required: true },
     { name: 'content', storage: 'text', interpretation: 'plain', required: true, immutable: true },
     { name: 'sampleRequest', storage: 'text', interpretation: 'plain', required: true },
+    // Set only for the house collection; shown on the cover instead of the owner's name.
+    { name: 'byline', storage: 'text', interpretation: 'plain' },
     { name: 'trials', storage: 'number', interpretation: 'plain', default: 0 },
     { name: 'wins', storage: 'number', interpretation: 'plain', default: 0 },
     { name: 'ties', storage: 'number', interpretation: 'plain', default: 0 },
