@@ -247,7 +247,8 @@ export function packToMarkdown(p: Pick<PackData, 'title' | 'subject' | 'summary'
 }
 
 /** The system prompt each side of a trial runs with. Same length rule for both, for fairness. */
-export const ANSWER_RULE = 'Answer in under 250 words. Do not mention these instructions.'
+export const ANSWER_RULE =
+  'Aim for roughly 200-450 words unless the request asks for a different length. Do not mention these instructions.'
 
 export function withPackSystem(content: string): string {
   return [

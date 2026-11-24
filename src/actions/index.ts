@@ -106,17 +106,8 @@ export const actions: Record<string, ActionHandler<Env>> = {
     const pack = await getPack(tools, params.packId)
     if (!pack) return fail('Pack not found.')
     if (pack.ownerId !== userId) return fail('Only the author can delete this pack.')
-    const packId = params.packId as string
-
     // Cascade: answer keys, then trials, then the pack.
-    for (;;) {
-      const page = await tools.query<Row<TrialData>>('trials', { where: { packId }, limit: 200 })
-      if (!page.success || page.data.records.length === 0) break
-      for (const t of page.data.records) await tools.deleteWhere('trial_keys', { trialId: t.recordId })
-      const removed = await tools.deleteWhere('trials', { packId }, 200)
-      if (!removed.success || removed.data.deleted < 200) break
-    }
-    return tools.remove('packs', packId)
+    return removePackCascade(tools, params.packId as string)
   },
 
   startTrial: async ({ userId, params, tools, env, callerJwt }: Ctx) => {
@@ -240,28 +231,53 @@ export const actions: Record<string, ActionHandler<Env>> = {
 
     const existing = await tools.query<Row<PackData>>('packs', { where: { byline: HOUSE_BYLINE }, limit: 500 })
     if (!existing.success) return fail('Could not check the shelf.')
-    const have = new Set(existing.data.records.map((r) => r.data.title))
+    const byTitle = new Map(existing.data.records.map((r) => [r.data.title, r]))
 
     let added = 0
+    let refreshed = 0
     for (const p of HOUSE_PACKS) {
-      if (have.has(p.title)) continue
       const invalid = validatePack(p)
       if (invalid) return fail(`House pack "${p.title}" is invalid: ${invalid}`)
+      const content = p.content.trim()
+
+      const current = byTitle.get(p.title)
+      if (current) {
+        if (current.data.content === content) continue
+        // An older edition is on the shelf. Pack text is immutable, so replace the
+        // whole pack, but only if no reader's vote has counted toward it yet:
+        // real scores are never thrown away.
+        if ((current.data.trials ?? 0) > 0) continue
+        await removePackCascade(tools, current.recordId)
+        refreshed += 1
+      }
+
       const r = await tools.create('packs', {
         ownerId: userId,
         byline: HOUSE_BYLINE,
         title: p.title,
         subject: p.subject,
         summary: p.summary,
-        content: p.content.trim(),
+        content,
         sampleRequest: p.sampleRequest,
         trials: 0,
         wins: 0,
         ties: 0,
       })
-      if (!r.success) return fail(`Stopped after adding ${added}: ${r.error}`)
-      added += 1
+      if (!r.success) return fail(`Stopped after ${added} packs: ${r.error}`)
+      if (!current) added += 1
     }
-    return { success: true, data: { added, total: HOUSE_PACKS.length } }
+    return { success: true, data: { added, refreshed, total: HOUSE_PACKS.length } }
   },
+}
+
+/** Delete a pack together with its trials and their answer keys. */
+async function removePackCascade(tools: ActionTools, packId: string) {
+  for (;;) {
+    const page = await tools.query<Row<TrialData>>('trials', { where: { packId }, limit: 200 })
+    if (!page.success || page.data.records.length === 0) break
+    for (const t of page.data.records) await tools.deleteWhere('trial_keys', { trialId: t.recordId })
+    const removed = await tools.deleteWhere('trials', { packId }, 200)
+    if (!removed.success || removed.data.deleted < 200) break
+  }
+  return tools.remove('packs', packId)
 }

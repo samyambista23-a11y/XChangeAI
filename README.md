@@ -48,7 +48,7 @@ Because permissions are enforced in DeepSpace's Durable Object, not the UI, open
 
 ## House collection
 
-So the shop isn't bare on day one, `src/lib/house-packs.ts` holds 31 packs across all 12 sections. The app owner adds them with one button on the shelves page (`stockHouseShelf`, admin-only and idempotent). They are labelled **House collection** on the cover rather than credited to invented people, start with zero tests like any new pack, and earn no author points for anyone. Every one passes the same validation as a user-published pack (tested).
+So the shop isn't bare on day one, `src/lib/house/` holds 31 packs across all 12 sections, each a full brief for the AI (expert role, quality bar, method, exact output format, mistakes to avoid, final self-check). When the app owner opens the shelves, any missing packs are added automatically (`stockHouseShelf`, admin-only and idempotent). An outdated house pack is replaced with the new edition only if no reader's vote has counted toward it, so real scores are never discarded. They are labelled **House collection** on the cover rather than credited to invented people, start with zero tests like any new pack, and earn no author points for anyone. Every one passes the same validation as a user-published pack (tested).
 
 ## Main tradeoff
 
@@ -93,6 +93,7 @@ Needs Node 22.15+, 24 or 26 and npm 11.6+.
 ## Known limits and what I'd do next
 
 - **Counter race.** `castVote` reads the pack, then writes the new totals. Two votes landing in the same instant could lose one. The fix is to recompute counts from trials, or a conditional write if the platform adds one.
+- **First-draft packs lost.** The first house packs were short rule lists, and testers usually preferred the plain AI. Two causes: a strong base model already follows generic advice, and a 250-word cap cut the structure the packs asked for. The packs were rewritten as full briefs and the shared length rule was relaxed for both sides equally.
 - **Same model on both sides.** Both answers come from the same model, so the test measures the pack, not the model. It can't tell you how a pack does on a different AI.
 - **No moderation.** A pack could tell the AI to behave badly. The system prompt asks it to follow the pack only where it isn't harmful, and the blind test exposes bad packs, but there is no review queue.
 - **Readers can see a voted trial's request.** That's what makes receipts work, but it means test requests are public once voted; the test form should say so more loudly.

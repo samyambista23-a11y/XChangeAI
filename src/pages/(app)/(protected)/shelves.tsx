@@ -1,6 +1,6 @@
 /** /shelves — the shop floor: one wooden shelf per subject, your borrower's card on the side. */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useToast } from '@/components/ui'
 import { attempt, callAction } from '../../../lib/api'
 import { HOUSE_BYLINE, HOUSE_PACKS } from '../../../lib/house-packs'
@@ -51,6 +51,7 @@ export default function ShelvesPage() {
   const me = user ? tallyPoints(user.id, trials, packs) : { votes: 0, wins: 0 }
   const houseCount = packs.filter((p) => p.data.byline === HOUSE_BYLINE).length
   const isAdmin = user?.role === 'admin'
+  useAutoStock(isAdmin && status === 'ready' && houseCount < HOUSE_PACKS.length)
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
@@ -121,10 +122,6 @@ export default function ShelvesPage() {
           />
         ))}
       </nav>
-
-      {isAdmin && status === 'ready' && houseCount < HOUSE_PACKS.length && (
-        <StockShelf missing={HOUSE_PACKS.length - houseCount} />
-      )}
 
       <div className="mt-12 space-y-14">
         {status === 'loading' && <LoadingShelf />}
@@ -214,32 +211,20 @@ function EmptyShop() {
   )
 }
 
-/** Owner-only: put the house collection on the shelves in one go. */
-function StockShelf({ missing }: { missing: number }) {
-  const { error, success } = useToast()
-  const [busy, setBusy] = useState(false)
-  async function stock() {
-    setBusy(true)
-    const r = await attempt(() => callAction<{ added: number }>('stockHouseShelf', {}))
-    setBusy(false)
-    if (r.ok) success('Shelves stocked', `${r.value?.added ?? 0} house packs are on the shelves.`)
-    else error('Could not stock the shelves', r.error)
-  }
-  return (
-    <div className="paper mt-8 flex flex-wrap items-center gap-4 rounded-[3px] border-l-4 border-[#c99a3e] px-5 py-4">
-      <p className="flex-1 text-[15px] text-[#4a3c2b]">
-        <span className="font-hand text-xl text-[#9b3b2a]">Owner’s note: </span>
-        {missing} packs from the house collection aren’t on the shelves yet. They’re labelled “House collection” and start
-        with no scores, like any new pack.
-      </p>
-      <button
-        type="button"
-        onClick={stock}
-        disabled={busy}
-        className="rounded-full bg-[#2f5d46] px-5 py-2.5 text-sm font-medium text-cream shadow-md transition-transform hover:-translate-y-0.5 disabled:opacity-60"
-      >
-        {busy ? 'Stocking the shelves…' : 'Stock the house shelf'}
-      </button>
-    </div>
-  )
+/**
+ * When the shop owner opens the shelves and any house-collection packs are
+ * missing, add them automatically (once per visit). The server action is
+ * admin-only and skips titles already on the shelf, so this is safe to retry.
+ */
+function useAutoStock(needed: boolean) {
+  const { success, error } = useToast()
+  const tried = useRef(false)
+  useEffect(() => {
+    if (!needed || tried.current) return
+    tried.current = true
+    void attempt(() => callAction<{ added: number }>('stockHouseShelf', {})).then((r) => {
+      if (r.ok && (r.value?.added ?? 0) > 0) success('Shelves stocked', `${r.value?.added} house packs were put out.`)
+      if (!r.ok) error('Could not stock the house shelf', r.error)
+    })
+  }, [needed, success, error])
 }

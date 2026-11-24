@@ -59,7 +59,7 @@ describe('blind test mechanics', () => {
   it('wraps the pack as data inside the system prompt', () => {
     const s = withPackSystem('Be rigorous.')
     expect(s).toContain('<teaching_pack>\nBe rigorous.\n</teaching_pack>')
-    expect(s).toMatch(/under 250 words/)
+    expect(s).toMatch(/200-450 words/)
   })
 })
 

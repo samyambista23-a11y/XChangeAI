@@ -271,4 +271,30 @@ describe('house shelf', () => {
     expect((again as { data: { added: number } }).data.added).toBe(0)
     expect(db.packs).toHaveLength(HOUSE_PACKS.length)
   })
+
+  it('replaces an outdated house pack nobody has voted on, but never one with real votes', async () => {
+    const { tools, db } = makeTools()
+    const [first, second] = HOUSE_PACKS
+    db.packs.push(
+      { recordId: 'old1', createdAt: '', data: { ...first, ownerId: 'admin-user', byline: HOUSE_BYLINE, content: 'old short text', trials: 0, wins: 0, ties: 0 } },
+      { recordId: 'old2', createdAt: '', data: { ...second, ownerId: 'admin-user', byline: HOUSE_BYLINE, content: 'old voted text', trials: 4, wins: 3, ties: 0 } },
+    )
+    db.trials.push({ recordId: 't-old', createdAt: '', data: { packId: 'old1', testerId: 'admin-user', status: 'voted' } })
+    db.trial_keys.push({ recordId: 'k-old', createdAt: '', data: { trialId: 't-old', packSide: 'A' } })
+
+    const r = await run('stockHouseShelf', 'admin-user', {}, tools)
+    expect(r.success).toBe(true)
+    expect((r as { data: { refreshed: number } }).data.refreshed).toBe(1)
+
+    const firstNow = db.packs.filter((p) => p.data.title === first.title)
+    expect(firstNow).toHaveLength(1)
+    expect(firstNow[0].data.content).toBe(first.content.trim())
+    expect(db.trials.find((t) => t.recordId === 't-old')).toBeUndefined()
+    expect(db.trial_keys).toHaveLength(0)
+
+    const secondNow = db.packs.filter((p) => p.data.title === second.title)
+    expect(secondNow).toHaveLength(1)
+    expect(secondNow[0].data.content).toBe('old voted text') // real votes kept
+    expect(db.packs).toHaveLength(HOUSE_PACKS.length)
+  })
 })
